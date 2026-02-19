@@ -1,0 +1,124 @@
+☕ JAVA  Quick Notes (Revision Format)
+
+What is Java?
+Java is a high-level, object-oriented, platform-independent programming language
+developed by Sun Microsystems (1995), now owned by Oracle.
+
+Principle: "Write Once, Run Anywhere (WORA)"
+
+--------------------------------------------------
+
+Key Features of Java
+
+✔ Object-Oriented (Everything is based on classes & objects)
+✔ Platform Independent (Runs on JVM, not OS)
+✔ Strongly Typed (Type must be declared)
+✔ Compiled + Interpreted
+✔ Automatic Memory Management (Garbage Collection)
+✔ Secure and Robust
+✔ Multithreading Support
+✔ Large Ecosystem & Libraries
+
+--------------------------------------------------
+
+How Java Works (Execution Flow)
+
+Source Code (.java)
+       ↓
+Java Compiler (javac)
+       ↓
+Bytecode (.class)
+       ↓
+JVM (Java Virtual Machine)
+       ↓
+Machine Code (runs on any OS)
+
+👉 JVM makes Java platform-independent.
+
+--------------------------------------------------
+
+Basic Java Example
+
+public class Main {
+    public static void main(String[] args) {
+        String name = "Afzal";
+        System.out.println("Hello " + name);
+    }
+}
+
+--------------------------------------------------
+
+Important Components of Java
+
+1. JDK (Java Development Kit)
+   → Tools to develop Java programs (compiler, debugger)
+
+2. JRE (Java Runtime Environment)
+   → Provides libraries + JVM to run Java programs
+
+3. JVM (Java Virtual Machine)
+   → Executes bytecode and makes Java portable
+
+--------------------------------------------------
+
+Core Concepts You Must Know
+
+• Classes & Objects
+• Inheritance
+• Polymorphism
+• Encapsulation
+• Abstraction
+• Interfaces
+• Exception Handling
+• Collections Framework
+• Multithreading
+• File Handling
+
+--------------------------------------------------
+
+Java Data Types
+
+Primitive:
+int, float, double, char, boolean, byte, short, long
+
+Non-Primitive:
+String, Arrays, Classes, Interfaces
+
+--------------------------------------------------
+
+Java vs Python
+
+Feature        Java                     Python
+--------------------------------------------------
+Typing         Static                   Dynamic
+Speed          Faster                   Slower
+Syntax         Verbose                  Simple
+Use Case       Enterprise Apps          AI / Automation
+Compilation    Bytecode via JVM         Interpreted
+
+--------------------------------------------------
+
+Where Java is Used
+
+✔ Enterprise Applications (Banking, ERP)
+✔ Android Development
+✔ Backend Systems (Spring Boot)
+✔ Distributed Systems
+✔ Big Data Tools (Hadoop, Kafka)
+✔ High-performance Server Apps
+
+--------------------------------------------------
+
+Why Java is Still Important
+
+• Massive industry adoption
+• Strong type safety for large systems
+• Excellent for scalable backend systems
+• Used in real-world production environments
+
+--------------------------------------------------
+
+One-Line Definition (For Revision)
+
+Java is a platform-independent, object-oriented language designed
+for building secure, scalable, enterprise-level applications.
