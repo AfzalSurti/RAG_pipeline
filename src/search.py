@@ -16,7 +16,7 @@ class RAGSearch:
             self.vectorstore.build_from_documents(docs)
         else:
             self.vectorstore.load()
-        GROQ_API_KEY="REDACTED_GROQ_KEY"
+        GROQ_API_KEY=os.getenv("GROQ_API_KEY")
         
         if not GROQ_API_KEY:
             raise ValueError("GROQ_API_KEY is not set in the environment variables.")
