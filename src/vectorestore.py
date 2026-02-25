@@ -22,6 +22,11 @@ class FaissVectorStore:
         print(f"[INFO] Building vector store from {len(documents)} raw documents...")
         emb_pipe = EmbeddingPipeline(model_name=self.embedding_model, chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
         chunks = emb_pipe.chunk_documents(documents)
+        chunks = [chunk for chunk in chunks if (chunk.page_content or "").strip()]
+        if not chunks:
+            raise ValueError(
+                "No text chunks were extracted from documents. PDFs may be scanned/image-only; use OCR-based sources or text-based PDFs."
+            )
         embeddings = emb_pipe.embed_chunks(chunks)
         metadatas = []
         for chunk in chunks:

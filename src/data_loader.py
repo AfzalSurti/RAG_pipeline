@@ -1,9 +1,51 @@
 from pathlib import Path
 from typing import List, Any
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, CSVLoader
+from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders.excel import UnstructuredExcelLoader
 from langchain_community.document_loaders import JSONLoader
+from langchain_core.documents import Document
+
+
+def _ocr_pdf_with_pytesseract(pdf_file: Path) -> List[Any]:
+    try:
+        import fitz
+        import pytesseract
+        from PIL import Image
+        import io
+        import shutil
+    except Exception as e:
+        print(f"[WARN] OCR dependencies are not available for {pdf_file}: {e}")
+        return []
+
+    if shutil.which("tesseract") is None:
+        windows_tesseract = Path("C:/Program Files/Tesseract-OCR/tesseract.exe")
+        if windows_tesseract.exists():
+            pytesseract.pytesseract.tesseract_cmd = str(windows_tesseract)
+
+    try:
+        doc = fitz.open(str(pdf_file))
+    except Exception as e:
+        print(f"[WARN] OCR could not open PDF {pdf_file}: {e}")
+        return []
+
+    ocr_documents = []
+    for page_idx in range(len(doc)):
+        page = doc[page_idx]
+        pix = page.get_pixmap(dpi=300)
+        image = Image.open(io.BytesIO(pix.tobytes("png")))
+        text = pytesseract.image_to_string(image).strip()
+        if text:
+            ocr_documents.append(
+                Document(
+                    page_content=text,
+                    metadata={"source": str(pdf_file), "page": page_idx + 1},
+                )
+            )
+
+    doc.close()
+    return ocr_documents
 
 def load_all_documents(data_dir: str) -> List[Any]:
     """
@@ -23,6 +65,14 @@ def load_all_documents(data_dir: str) -> List[Any]:
         try:
             loader = PyPDFLoader(str(pdf_file))
             loaded = loader.load()
+            extracted_text = "".join((doc.page_content or "") for doc in loaded).strip()
+            if not extracted_text:
+                print(f"[WARN] No text from PyPDFLoader, trying PyMuPDFLoader for: {pdf_file}")
+                loaded = PyMuPDFLoader(str(pdf_file)).load()
+                extracted_text = "".join((doc.page_content or "") for doc in loaded).strip()
+            if not extracted_text:
+                print(f"[WARN] No text from PyMuPDFLoader, trying OCR for: {pdf_file}")
+                loaded = _ocr_pdf_with_pytesseract(pdf_file)
             print(f"[DEBUG] Loaded {len(loaded)} PDF docs from {pdf_file}")
             documents.extend(loaded)
         except Exception as e:
