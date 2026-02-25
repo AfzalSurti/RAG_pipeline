@@ -23,7 +23,16 @@ class FaissVectorStore:
         emb_pipe = EmbeddingPipeline(model_name=self.embedding_model, chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
         chunks = emb_pipe.chunk_documents(documents)
         embeddings = emb_pipe.embed_chunks(chunks)
-        metadatas = [{"text": chunk.page_content} for chunk in chunks]
+        metadatas = []
+        for chunk in chunks:
+            chunk_meta = chunk.metadata or {}
+            metadatas.append(
+                {
+                    "text": chunk.page_content,
+                    "source": chunk_meta.get("source", "unknown"),
+                    "page": chunk_meta.get("page", chunk_meta.get("page_number", "NA")),
+                }
+            )
         self.add_embeddings(np.array(embeddings).astype('float32'), metadatas)
         self.save()
         print(f"[INFO] Vector store built and saved to {self.persist_dir}")
