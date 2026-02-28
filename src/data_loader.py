@@ -1,11 +1,57 @@
 from pathlib import Path
-from typing import List, Any
+from typing import List, Any, Iterable, Union
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, CSVLoader
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders.excel import UnstructuredExcelLoader
 from langchain_community.document_loaders import JSONLoader
 from langchain_core.documents import Document
+
+SUPPORTED_EXTENSIONS = {".pdf", ".txt", ".csv", ".xlsx", ".docx", ".json"}
+
+
+def _score_ocr_text(text: str) -> float:
+    cleaned = (text or "").strip()
+    if not cleaned:
+        return 0.0
+    total = len(cleaned)
+    if total == 0:
+        return 0.0
+    alpha_num = sum(ch.isalnum() for ch in cleaned)
+    words = len(cleaned.split())
+    return (alpha_num / total) * 0.7 + min(words / 120.0, 1.0) * 0.3
+
+
+def _ocr_image_with_strategies(image, pytesseract):
+    from PIL import ImageFilter, ImageOps
+
+    grayscale = ImageOps.grayscale(image)
+    boosted = ImageOps.autocontrast(grayscale)
+    thresholded = boosted.point(lambda pixel: 255 if pixel > 160 else 0)
+    denoised = thresholded.filter(ImageFilter.MedianFilter(size=3))
+
+    variants = [
+        boosted,
+        thresholded,
+        denoised,
+    ]
+    configs = [
+        "--oem 3 --psm 6",
+        "--oem 3 --psm 4",
+        "--oem 3 --psm 11",
+    ]
+
+    best_text = ""
+    best_score = 0.0
+    for variant in variants:
+        for config in configs:
+            candidate = pytesseract.image_to_string(variant, config=config).strip()
+            score = _score_ocr_text(candidate)
+            if score > best_score:
+                best_text = candidate
+                best_score = score
+
+    return best_text, best_score
 
 
 def _ocr_pdf_with_pytesseract(pdf_file: Path) -> List[Any]:
@@ -35,17 +81,94 @@ def _ocr_pdf_with_pytesseract(pdf_file: Path) -> List[Any]:
         page = doc[page_idx]
         pix = page.get_pixmap(dpi=300)
         image = Image.open(io.BytesIO(pix.tobytes("png")))
-        text = pytesseract.image_to_string(image).strip()
-        if text:
+        text, quality = _ocr_image_with_strategies(image, pytesseract)
+        if text and quality >= 0.08:
             ocr_documents.append(
                 Document(
                     page_content=text,
-                    metadata={"source": str(pdf_file), "page": page_idx + 1},
+                    metadata={
+                        "source": str(pdf_file),
+                        "page": page_idx + 1,
+                        "ocr": True,
+                        "ocr_quality": round(quality, 4),
+                    },
                 )
             )
 
     doc.close()
     return ocr_documents
+
+
+def _load_single_file(file_path: Path) -> List[Any]:
+    suffix = file_path.suffix.lower()
+    try:
+        if suffix == ".pdf":
+            loader = PyPDFLoader(str(file_path))
+            loaded = loader.load()
+            extracted_text = "".join((doc.page_content or "") for doc in loaded).strip()
+            if not extracted_text:
+                print(f"[WARN] No text from PyPDFLoader, trying PyMuPDFLoader for: {file_path}")
+                loaded = PyMuPDFLoader(str(file_path)).load()
+                extracted_text = "".join((doc.page_content or "") for doc in loaded).strip()
+            if not extracted_text:
+                print(f"[WARN] No text from PyMuPDFLoader, trying OCR for: {file_path}")
+                loaded = _ocr_pdf_with_pytesseract(file_path)
+            print(f"[DEBUG] Loaded {len(loaded)} PDF docs from {file_path}")
+            return loaded
+
+        if suffix == ".txt":
+            try:
+                loaded = TextLoader(str(file_path), autodetect_encoding=True).load()
+            except ModuleNotFoundError:
+                loaded = TextLoader(str(file_path)).load()
+            print(f"[DEBUG] Loaded {len(loaded)} TXT docs from {file_path}")
+            return loaded
+
+        if suffix == ".csv":
+            loaded = CSVLoader(str(file_path)).load()
+            print(f"[DEBUG] Loaded {len(loaded)} CSV docs from {file_path}")
+            return loaded
+
+        if suffix == ".xlsx":
+            loaded = UnstructuredExcelLoader(str(file_path)).load()
+            print(f"[DEBUG] Loaded {len(loaded)} Excel docs from {file_path}")
+            return loaded
+
+        if suffix == ".docx":
+            loaded = Docx2txtLoader(str(file_path)).load()
+            print(f"[DEBUG] Loaded {len(loaded)} Word docs from {file_path}")
+            return loaded
+
+        if suffix == ".json":
+            loaded = JSONLoader(str(file_path)).load()
+            print(f"[DEBUG] Loaded {len(loaded)} JSON docs from {file_path}")
+            return loaded
+
+        return []
+    except Exception as e:
+        print(f"[ERROR] Failed to load {suffix.upper()} {file_path}: {e}")
+        return []
+
+
+def load_documents_from_paths(file_paths: Iterable[Union[str, Path]]) -> List[Any]:
+    documents = []
+    normalized_paths = []
+    for raw_path in file_paths:
+        path = Path(raw_path).resolve()
+        if not path.exists() or not path.is_file():
+            continue
+        if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+            continue
+        normalized_paths.append(path)
+
+    normalized_paths = sorted(set(normalized_paths))
+    print(f"[DEBUG] Loading explicit file set: {len(normalized_paths)} files")
+    for file_path in normalized_paths:
+        print(f"[DEBUG] Loading file: {file_path}")
+        documents.extend(_load_single_file(file_path))
+
+    print(f"[DEBUG] Total loaded documents from file set: {len(documents)}")
+    return documents
 
 def load_all_documents(data_dir: str) -> List[Any]:
     """
@@ -55,96 +178,13 @@ def load_all_documents(data_dir: str) -> List[Any]:
     # Use project root data folder
     data_path = Path(data_dir).resolve()
     print(f"[DEBUG] Data path: {data_path}")
-    documents = []
-
-    # PDF files
-    pdf_files = list(data_path.glob('**/*.pdf'))
-    print(f"[DEBUG] Found {len(pdf_files)} PDF files: {[str(f) for f in pdf_files]}")
-    for pdf_file in pdf_files:
-        print(f"[DEBUG] Loading PDF: {pdf_file}")
-        try:
-            loader = PyPDFLoader(str(pdf_file))
-            loaded = loader.load()
-            extracted_text = "".join((doc.page_content or "") for doc in loaded).strip()
-            if not extracted_text:
-                print(f"[WARN] No text from PyPDFLoader, trying PyMuPDFLoader for: {pdf_file}")
-                loaded = PyMuPDFLoader(str(pdf_file)).load()
-                extracted_text = "".join((doc.page_content or "") for doc in loaded).strip()
-            if not extracted_text:
-                print(f"[WARN] No text from PyMuPDFLoader, trying OCR for: {pdf_file}")
-                loaded = _ocr_pdf_with_pytesseract(pdf_file)
-            print(f"[DEBUG] Loaded {len(loaded)} PDF docs from {pdf_file}")
-            documents.extend(loaded)
-        except Exception as e:
-            print(f"[ERROR] Failed to load PDF {pdf_file}: {e}")
-
-    # TXT files
-    txt_files = list(data_path.glob('**/*.txt'))
-    print(f"[DEBUG] Found {len(txt_files)} TXT files: {[str(f) for f in txt_files]}")
-    for txt_file in txt_files:
-        print(f"[DEBUG] Loading TXT: {txt_file}")
-        try:
-            loader = TextLoader(str(txt_file))
-            loaded = loader.load()
-            print(f"[DEBUG] Loaded {len(loaded)} TXT docs from {txt_file}")
-            documents.extend(loaded)
-        except Exception as e:
-            print(f"[ERROR] Failed to load TXT {txt_file}: {e}")
-
-    # CSV files
-    csv_files = list(data_path.glob('**/*.csv'))
-    print(f"[DEBUG] Found {len(csv_files)} CSV files: {[str(f) for f in csv_files]}")
-    for csv_file in csv_files:
-        print(f"[DEBUG] Loading CSV: {csv_file}")
-        try:
-            loader = CSVLoader(str(csv_file))
-            loaded = loader.load()
-            print(f"[DEBUG] Loaded {len(loaded)} CSV docs from {csv_file}")
-            documents.extend(loaded)
-        except Exception as e:
-            print(f"[ERROR] Failed to load CSV {csv_file}: {e}")
-
-    # Excel files
-    xlsx_files = list(data_path.glob('**/*.xlsx'))
-    print(f"[DEBUG] Found {len(xlsx_files)} Excel files: {[str(f) for f in xlsx_files]}")
-    for xlsx_file in xlsx_files:
-        print(f"[DEBUG] Loading Excel: {xlsx_file}")
-        try:
-            loader = UnstructuredExcelLoader(str(xlsx_file))
-            loaded = loader.load()
-            print(f"[DEBUG] Loaded {len(loaded)} Excel docs from {xlsx_file}")
-            documents.extend(loaded)
-        except Exception as e:
-            print(f"[ERROR] Failed to load Excel {xlsx_file}: {e}")
-
-    # Word files
-    docx_files = list(data_path.glob('**/*.docx'))
-    print(f"[DEBUG] Found {len(docx_files)} Word files: {[str(f) for f in docx_files]}")
-    for docx_file in docx_files:
-        print(f"[DEBUG] Loading Word: {docx_file}")
-        try:
-            loader = Docx2txtLoader(str(docx_file))
-            loaded = loader.load()
-            print(f"[DEBUG] Loaded {len(loaded)} Word docs from {docx_file}")
-            documents.extend(loaded)
-        except Exception as e:
-            print(f"[ERROR] Failed to load Word {docx_file}: {e}")
-
-    # JSON files
-    json_files = list(data_path.glob('**/*.json'))
-    print(f"[DEBUG] Found {len(json_files)} JSON files: {[str(f) for f in json_files]}")
-    for json_file in json_files:
-        print(f"[DEBUG] Loading JSON: {json_file}")
-        try:
-            loader = JSONLoader(str(json_file))
-            loaded = loader.load()
-            print(f"[DEBUG] Loaded {len(loaded)} JSON docs from {json_file}")
-            documents.extend(loaded)
-        except Exception as e:
-            print(f"[ERROR] Failed to load JSON {json_file}: {e}")
-
-    print(f"[DEBUG] Total loaded documents: {len(documents)}")
-    return documents
+    all_files = [
+        file_path
+        for file_path in data_path.rglob("*")
+        if file_path.is_file() and file_path.suffix.lower() in SUPPORTED_EXTENSIONS
+    ]
+    print(f"[DEBUG] Found {len(all_files)} supported files under {data_path}")
+    return load_documents_from_paths(all_files)
 
 # Example usage
 if __name__ == "__main__":

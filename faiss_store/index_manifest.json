@@ -1,0 +1,64 @@
+{
+  "files": {
+    "CopyOfExam/BWP_External_23.pdf": {
+      "mtime_ns": 1759560921549835300,
+      "size": 1086148
+    },
+    "CopyOfExam/CG_External_23.pdf": {
+      "mtime_ns": 1759560920074600300,
+      "size": 645323
+    },
+    "CopyOfExam/CO INTERNAL 22.pdf": {
+      "mtime_ns": 1755593027479922900,
+      "size": 143953
+    },
+    "CopyOfExam/CO Internal 23.pdf": {
+      "mtime_ns": 1755592972420198600,
+      "size": 358246
+    },
+    "CopyOfExam/CO_External_23.pdf": {
+      "mtime_ns": 1759560920117581600,
+      "size": 652565
+    },
+    "CopyOfExam/EE Internal 23.pdf": {
+      "mtime_ns": 1755775715405011200,
+      "size": 243848
+    },
+    "CopyOfExam/EE_External_23.pdf": {
+      "mtime_ns": 1759560922134910400,
+      "size": 1145158
+    },
+    "CopyOfExam/TOC_External_23.pdf": {
+      "mtime_ns": 1759560922315355300,
+      "size": 1228289
+    },
+    "csv/employee.csv": {
+      "mtime_ns": 1772194051052844300,
+      "size": 3720
+    },
+    "pdf/1_Final_DFA.pdf": {
+      "mtime_ns": 1754905875346425600,
+      "size": 2624657
+    },
+    "pdf1/01_Introduction_to_Attention_Mechanisms.pdf": {
+      "mtime_ns": 1771844728892161800,
+      "size": 6723
+    },
+    "pdf1/02_Transformer_and_Self_Attention.pdf": {
+      "mtime_ns": 1771844736287787500,
+      "size": 6230
+    },
+    "pdf1/03_Advanced_Attention_Variants.pdf": {
+      "mtime_ns": 1771844738685092400,
+      "size": 7295
+    },
+    "text_files/java_info.txt": {
+      "mtime_ns": 1771490650174666300,
+      "size": 3207
+    },
+    "text_files/python_info.txt": {
+      "mtime_ns": 1771490650174666300,
+      "size": 2206
+    }
+  }
+}

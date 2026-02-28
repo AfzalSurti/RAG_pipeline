@@ -1,19 +1,14 @@
-import os
 from src.search import RAGSearch
 
 if __name__=="__main__":
-    data_dir = "CopyOfExam"
-    persist_dir = "faiss_store_exam"
-    should_rebuild = not (
-        os.path.exists(os.path.join(persist_dir, "faiss.index"))
-        and os.path.exists(os.path.join(persist_dir, "metadata.pkl"))
-    )
+    data_dir = "data"
+    persist_dir = "faiss_store"
 
     try:
         rag_search = RAGSearch(
             persist_dir=persist_dir,
             data_dir=data_dir,
-            rebuild_index=should_rebuild,
+            rebuild_index=False,
         )
     except ValueError as e:
         print(f"[ERROR] {e}")
