@@ -128,6 +128,37 @@ Then ask queries in terminal, for example:
 
 ---
 
+## Learning snapshots (`images/`)
+
+This project also includes personal learning snapshots captured while studying RAG. These are important references and are kept in the `images/` folder.
+
+### Snapshot 1: Foundation of RAG flow
+
+![RAG Learning Snapshot 1](images/1.png)
+
+This snapshot represents the base pipeline idea: document ingestion, conversion to structured text, and preparation for retrieval.
+
+### Snapshot 2: Retrieval and context building
+
+![RAG Learning Snapshot 2](images/2.png)
+
+This snapshot focuses on retrieval steps: chunk matching, similarity search, and assembling the most relevant context for prompt construction.
+
+### Snapshot 3: Prompting and final answer generation
+
+![RAG Learning Snapshot 3](images/3.png)
+
+This snapshot reflects the final stage: sending retrieved context to the LLM with a structured prompt to get clear, complete, grounded answers.
+
+These snapshots align directly with the code in `src/`:
+
+- `data_loader.py` → document loading and normalization
+- `embedding.py` → chunking and embeddings
+- `vectorestore.py` → FAISS indexing and similarity retrieval
+- `search.py` → context assembly + prompt to LLM + response generation
+
+---
+
 ## Tech stack
 
 - LangChain / LangChain Community

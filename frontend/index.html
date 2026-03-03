@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG Chat</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="app-header">
+      <h1>RAG Chat</h1>
+      <p id="statusText">Initializing pipeline...</p>
+    </header>
+
+    <section id="chatWindow" class="chat-window" aria-live="polite"></section>
+
+    <form id="chatForm" class="chat-input-row">
+      <input id="messageInput" type="text" placeholder="Ask anything from your loaded documents..." autocomplete="off" />
+      <button id="sendButton" type="submit">Send</button>
+    </form>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
