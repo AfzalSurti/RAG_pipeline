@@ -3,7 +3,6 @@ import faiss
 import numpy as np
 import pickle
 from typing import List, Any
-from sentence_transformers import SentenceTransformer
 from src.embedding import EmbeddingPipeline
 
 class FaissVectorStore:
@@ -13,14 +12,27 @@ class FaissVectorStore:
         self.index = None
         self.metadata = []
         self.embedding_model = embedding_model
-        self.model = SentenceTransformer(embedding_model)
+        try:
+            from sentence_transformers import SentenceTransformer
+            self.model = SentenceTransformer(embedding_model)
+        except Exception as e:
+            raise RuntimeError(
+                "Failed to initialize sentence-transformers. "
+                "Please use a clean project environment and reinstall dependencies. "
+                "If you use Conda on Windows, run with: set PYTHONNOUSERSITE=1"
+            ) from e
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         print(f"[INFO] Loaded embedding model: {embedding_model}")
 
     def build_from_documents(self, documents: List[Any]):
         print(f"[INFO] Building vector store from {len(documents)} raw documents...")
-        emb_pipe = EmbeddingPipeline(model_name=self.embedding_model, chunk_size=self.chunk_size, chunk_overlap=self.chunk_overlap)
+        emb_pipe = EmbeddingPipeline(
+            model_name=self.embedding_model,
+            chunk_size=self.chunk_size,
+            chunk_overlap=self.chunk_overlap,
+            model=self.model,
+        )
         chunks = emb_pipe.chunk_documents(documents)
         chunks = [chunk for chunk in chunks if (chunk.page_content or "").strip()]
         if not chunks:

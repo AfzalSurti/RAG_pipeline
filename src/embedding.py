@@ -1,15 +1,18 @@
 from typing import List, Any
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from sentence_transformers import SentenceTransformer
 import numpy as np
-from src.data_loader import load_all_documents
 
 class EmbeddingPipeline:
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2", chunk_size: int = 1000, chunk_overlap: int = 200):
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2", chunk_size: int = 1000, chunk_overlap: int = 200, model: Any = None):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
-        self.model = SentenceTransformer(model_name)
-        print(f"[INFO] Loaded embedding model: {model_name}")
+        if model is not None:
+            self.model = model
+            print(f"[INFO] Reusing loaded embedding model: {model_name}")
+        else:
+            from sentence_transformers import SentenceTransformer
+            self.model = SentenceTransformer(model_name)
+            print(f"[INFO] Loaded embedding model: {model_name}")
 
     def chunk_documents(self, documents: List[Any]) -> List[Any]:
         splitter = RecursiveCharacterTextSplitter(
@@ -31,7 +34,8 @@ class EmbeddingPipeline:
 
 # Example usage
 if __name__ == "__main__":
-    
+    from src.data_loader import load_all_documents
+
     docs = load_all_documents("data")
     emb_pipe = EmbeddingPipeline()
     chunks = emb_pipe.chunk_documents(docs)
