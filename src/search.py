@@ -116,6 +116,7 @@ class RAGSearch:
                 return "I don't have previous conversation memory yet."
             return f"My previous answer was:\n\n{last.get('answer', '')}"
 
+        is_solution_request = self._is_solution_request(query)
         candidate_k = max(top_k * 6, 30)
         knowledge_results = self.vectorstore.query(query, top_k=candidate_k)
         knowledge_results = self._adapt_results(knowledge_results, query, top_k)
@@ -144,10 +145,33 @@ class RAGSearch:
         context = "\n\n".join(context_blocks)
         memory_context = "\n\n".join(memory_blocks)
 
-        if not context:
+        if not context and not is_solution_request:
             return "No relevant documents found."
 
-        prompt = f"""
+        if is_solution_request:
+            prompt = f"""
+        You are an expert exam assistant with deep subject knowledge. A user is asking for a solution or explanation.
+
+        Rules:
+        1) Use your own knowledge and expertise to provide a comprehensive solution/explanation.
+        2) If relevant exam context is provided below, reference it to ensure accuracy.
+        3) Provide clear step-by-step explanations, formulas, diagrams descriptions, or logical reasoning.
+        4) Be thorough and educational in your explanation.
+        5) If the question references exam documents, cite them appropriately.
+
+        User's question/request:
+        {query}
+
+        Exam context (if available):
+        {context if context else "No relevant exam documents found. Using general knowledge."}
+
+        Conversation memory:
+        {memory_context if memory_context else "None"}
+
+        Provide a detailed solution/explanation:
+        """
+        else:
+            prompt = f"""
         You are an exam-paper RAG assistant with persistent conversational memory.
 
         Rules:
