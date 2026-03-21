@@ -7,8 +7,6 @@ from flask import Flask, jsonify, request, send_from_directory
 
 os.environ.setdefault("PYTHONNOUSERSITE", "1")
 
-from src.search import RAGSearch
-
 
 DATA_DIR = "CopyOfExam"
 PERSIST_DIR = "faiss_store_exam"
@@ -40,6 +38,8 @@ def _initialize_rag() -> None:
         _rag_loading = True
 
     try:
+        from src.search import RAGSearch
+
         rebuild = _get_rebuild_flag()
         _rag = RAGSearch(
             persist_dir=PERSIST_DIR,
@@ -68,6 +68,8 @@ def _ensure_rag_ready() -> None:
 
 
 def _run_cli_mode() -> None:
+    from src.search import RAGSearch
+
     if not _is_venv_active():
         print("[WARN] You are not using the project virtual environment.")
         print("[WARN] Run with: D:/RAG_pipeline/.venv/Scripts/python.exe app.py --cli")
