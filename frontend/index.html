@@ -3,23 +3,70 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RAG Chat</title>
+  <title>RAG Exam Copilot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    rel="stylesheet"
+  />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
+  <div class="bg-grid"></div>
   <main class="app-shell">
-    <header class="app-header">
-      <h1>RAG Chat</h1>
-      <p id="statusText">Initializing pipeline...</p>
-    </header>
+    <aside class="left-rail">
+      <div class="brand">
+        <div class="brand-dot"></div>
+        <div>
+          <h1>RAG Exam Copilot</h1>
+          <p>Grounded answers from your papers</p>
+        </div>
+      </div>
+      <div class="status-card">
+        <p class="status-label">System status</p>
+        <p id="statusText" class="status-text">Initializing pipeline...</p>
+      </div>
+      <div class="tip-card">
+        <p class="tip-title">Try prompts</p>
+        <div class="chip-wrap">
+          <button class="chip" data-prompt="give me 3 question from theory of computation">3 TOC questions</button>
+          <button class="chip" data-prompt="what is finite automata with definition">Finite automata definition</button>
+          <button class="chip" data-prompt="what was my previous question">Previous question</button>
+        </div>
+      </div>
+    </aside>
 
-    <section id="chatWindow" class="chat-window" aria-live="polite"></section>
-
-    <form id="chatForm" class="chat-input-row">
-      <input id="messageInput" type="text" placeholder="Ask anything from your loaded documents..." autocomplete="off" />
-      <button id="sendButton" type="submit">Send</button>
-    </form>
+    <section class="chat-panel">
+      <section id="chatWindow" class="chat-window" aria-live="polite"></section>
+      <form id="chatForm" class="chat-input-row">
+        <input
+          id="messageInput"
+          type="text"
+          placeholder="Ask anything from your exam documents..."
+          autocomplete="off"
+        />
+        <button id="sendButton" type="submit">Ask</button>
+      </form>
+    </section>
   </main>
+
+  <template id="typingTemplate">
+    <div class="msg bot typing">
+      <span></span><span></span><span></span>
+    </div>
+  </template>
+
+  <template id="messageTemplate">
+    <article class="msg-wrap">
+      <div class="msg-role"></div>
+      <div class="msg"></div>
+    </article>
+  </template>
+
+  <footer class="footer-note">
+    RAG answers include source citations when available.
+  </footer>
 
   <script src="/app.js"></script>
 </body>

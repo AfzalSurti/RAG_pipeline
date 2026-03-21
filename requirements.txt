@@ -10,3 +10,4 @@ langchain-groq
 python-dotenv
 pytesseract
 Pillow
+Flask

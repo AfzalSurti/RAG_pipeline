@@ -47,6 +47,26 @@ class RAGSearch:
         return any(k in q for k in keywords)
 
     @staticmethod
+    def _is_last_question_request(query: str) -> bool:
+        q = " ".join((query or "").lower().split())
+        patterns = [
+            "what question i ask above",
+            "what question i asked above",
+            "what did i ask above",
+            "what did i ask",
+            "previous question",
+            "last question",
+            "question i asked",
+        ]
+        return any(pattern in q for pattern in patterns)
+
+    @staticmethod
+    def _is_last_answer_request(query: str) -> bool:
+        q = " ".join((query or "").lower().split())
+        patterns = ["previous answer", "last answer", "what answer did you give", "what was your answer"]
+        return any(pattern in q for pattern in patterns)
+
+    @staticmethod
     def _extract_requested_count(query: str, default_count: int) -> int:
         match = re.search(r"\b(\d{1,2})\b", query)
         if not match:
@@ -84,6 +104,18 @@ class RAGSearch:
         return filtered if filtered else results[:required_results]
 
     def search_and_summarize(self, query: str, top_k: int = 10, memory_top_k: int = 3) -> str:
+        if self._is_last_question_request(query):
+            last = self.memory_store.get_last_interaction()
+            if not last:
+                return "I don't have previous conversation memory yet."
+            return f"You asked earlier: **\"{last.get('question', '')}\"**"
+
+        if self._is_last_answer_request(query):
+            last = self.memory_store.get_last_interaction()
+            if not last:
+                return "I don't have previous conversation memory yet."
+            return f"My previous answer was:\n\n{last.get('answer', '')}"
+
         candidate_k = max(top_k * 6, 30)
         knowledge_results = self.vectorstore.query(query, top_k=candidate_k)
         knowledge_results = self._adapt_results(knowledge_results, query, top_k)

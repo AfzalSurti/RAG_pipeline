@@ -89,3 +89,14 @@ class ConversationMemoryStore:
             )
 
         return results
+
+    def get_last_interaction(self) -> Dict[str, Any] | None:
+        if not self.metadata:
+            return None
+        return self.metadata[-1]
+
+    def get_recent_interactions(self, limit: int = 5) -> List[Dict[str, Any]]:
+        if not self.metadata:
+            return []
+        safe_limit = max(1, limit)
+        return self.metadata[-safe_limit:]
