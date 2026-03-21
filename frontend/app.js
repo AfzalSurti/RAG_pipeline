@@ -90,6 +90,20 @@ function formatAnswer(text) {
 }
 
 
+function shouldAutoScroll() {
+  const threshold = 64;
+  const isAtBottom = chatWindow.scrollHeight - chatWindow.scrollTop - chatWindow.clientHeight <= threshold;
+  return isAtBottom;
+}
+
+
+function autoScrollIfNeeded() {
+  if (shouldAutoScroll()) {
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+  }
+}
+
+
 function appendMessage(text, role = "bot", isHtml = false) {
   const node = messageTemplate.content.firstElementChild.cloneNode(true);
   const roleNode = node.querySelector(".msg-role");
@@ -105,14 +119,14 @@ function appendMessage(text, role = "bot", isHtml = false) {
   }
 
   chatWindow.appendChild(node);
-  chatWindow.scrollTop = chatWindow.scrollHeight;
+  autoScrollIfNeeded();
 }
 
 
 function appendTyping() {
   const typingNode = typingTemplate.content.firstElementChild.cloneNode(true);
   chatWindow.appendChild(typingNode);
-  chatWindow.scrollTop = chatWindow.scrollHeight;
+  autoScrollIfNeeded();
   return typingNode;
 }
 
