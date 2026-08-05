@@ -373,7 +373,7 @@ def api_upload(chat_id: int):
         if not _rag_ready or _rag is None:
             return jsonify({"error": _rag_error or "Pipeline is still initializing. Retry shortly."}), 503
 
-        docs = load_single_document(str(stored_path))
+        docs = load_single_document(str(stored_path), source_name=original)
         chunks_added = _rag.ingest_chat_documents(chat_id, docs)
 
         chat_file = ChatFile(

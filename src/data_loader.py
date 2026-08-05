@@ -147,8 +147,12 @@ def load_all_documents(data_dir: str) -> List[Any]:
     return documents
 
 
-def load_single_document(file_path: str) -> List[Any]:
-    """Load one uploaded PDF/TXT/CSV/DOCX/etc into LangChain documents."""
+def load_single_document(file_path: str, source_name: str = None) -> List[Any]:
+    """Load one uploaded PDF/TXT/CSV/DOCX/etc into LangChain documents.
+
+    `source_name` keeps citations readable when the file is stored under a
+    generated unique name.
+    """
     path = Path(file_path).resolve()
     if not path.exists():
         raise FileNotFoundError(f"File not found: {path}")
@@ -182,7 +186,7 @@ def load_single_document(file_path: str) -> List[Any]:
 
     for doc in loaded:
         meta = dict(doc.metadata or {})
-        meta["source"] = path.name
+        meta["source"] = source_name or path.name
         doc.metadata = meta
 
     return loaded

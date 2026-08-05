@@ -44,7 +44,7 @@ class ConversationMemoryStore:
         with open(self.metadata_path, "wb") as memory_file:
             pickle.dump(self.metadata, memory_file)
 
-    def add_interaction(self, question: str, answer: str) -> None:
+    def add_interaction(self, question: str, answer: str, chat_id: Any = None) -> None:
         question = (question or "").strip()
         answer = (answer or "").strip()
         if not question or not answer:
@@ -62,41 +62,55 @@ class ConversationMemoryStore:
                 "text": memory_text,
                 "question": question,
                 "answer": answer,
+                "chat_id": chat_id,
                 "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             }
         )
         self._save()
         print("[INFO] Added interaction to persistent conversation memory.")
 
-    def query(self, query_text: str, top_k: int = 3) -> List[Dict[str, Any]]:
+    def query(self, query_text: str, top_k: int = 3, chat_id: Any = None) -> List[Dict[str, Any]]:
         if self.index is None or not self.metadata:
             return []
 
         vector = self.model.encode([query_text]).astype("float32")
-        safe_top_k = max(1, min(top_k, len(self.metadata)))
+        # Over-fetch so chat filtering still leaves enough hits
+        fetch_k = min(len(self.metadata), max(top_k * 10, 50)) if chat_id is not None else top_k
+        safe_top_k = max(1, min(fetch_k, len(self.metadata)))
         distances, indexes = self.index.search(vector, safe_top_k)
         results: List[Dict[str, Any]] = []
 
         for idx, dist in zip(indexes[0], distances[0]):
             if idx < 0 or idx >= len(self.metadata):
                 continue
+            meta = self.metadata[idx]
+            if chat_id is not None and meta.get("chat_id") != chat_id:
+                continue
             results.append(
                 {
                     "index": int(idx),
                     "distance": float(dist),
-                    "metadata": self.metadata[idx],
+                    "metadata": meta,
                 }
             )
+            if len(results) >= top_k:
+                break
 
         return results
 
-    def get_last_interaction(self) -> Dict[str, Any] | None:
-        if not self.metadata:
-            return None
-        return self.metadata[-1]
+    def _scoped(self, chat_id: Any = None) -> List[Dict[str, Any]]:
+        if chat_id is None:
+            return self.metadata
+        return [m for m in self.metadata if m.get("chat_id") == chat_id]
 
-    def get_recent_interactions(self, limit: int = 5) -> List[Dict[str, Any]]:
-        if not self.metadata:
+    def get_last_interaction(self, chat_id: Any = None) -> Dict[str, Any] | None:
+        rows = self._scoped(chat_id)
+        if not rows:
+            return None
+        return rows[-1]
+
+    def get_recent_interactions(self, limit: int = 5, chat_id: Any = None) -> List[Dict[str, Any]]:
+        rows = self._scoped(chat_id)
+        if not rows:
             return []
-        safe_limit = max(1, limit)
-        return self.metadata[-safe_limit:]
+        return rows[-max(1, limit):]
