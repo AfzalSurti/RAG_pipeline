@@ -3,58 +3,118 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RAG Exam Copilot</title>
+  <title>ExamMind</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap"
     rel="stylesheet"
   />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <div class="bg-grid"></div>
-  <main class="app-shell">
-    <aside class="left-rail">
-      <div class="brand">
-        <div class="brand-dot"></div>
-        <div>
-          <h1>RAG Exam Copilot</h1>
-          <p>Grounded answers from your papers</p>
-        </div>
+  <div class="page-wash" aria-hidden="true"></div>
+
+  <!-- Auth -->
+  <section id="authView" class="auth-view hidden">
+    <div class="auth-hero">
+      <p class="eyebrow">Past papers · Chapters · Solutions</p>
+      <h1 class="brand-lockup">ExamMind</h1>
+      <p class="auth-tagline">
+        Ask questions from your exam papers or upload a chapter PDF and get grounded answers with citations.
+      </p>
+    </div>
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" data-mode="login">Log in</button>
+        <button type="button" class="auth-tab" data-mode="signup">Sign up</button>
       </div>
-      <div class="status-card">
-        <p class="status-label">System status</p>
-        <p id="statusText" class="status-text">Initializing pipeline...</p>
-      </div>
-      <div class="tip-card">
-        <p class="tip-title">Try prompts</p>
-        <div class="chip-wrap">
-          <button class="chip" data-prompt="give me 3 question from theory of computation">3 TOC questions</button>
-          <button class="chip" data-prompt="what is finite automata with definition">Finite automata definition</button>
-          <button class="chip" data-prompt="what was my previous question">Previous question</button>
+      <form id="authForm" class="auth-form">
+        <label id="nameField" class="field hidden">
+          <span>Name</span>
+          <input id="authName" type="text" autocomplete="name" placeholder="Your name" />
+        </label>
+        <label class="field">
+          <span>Email</span>
+          <input id="authEmail" type="email" required autocomplete="email" placeholder="you@college.edu" />
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input id="authPassword" type="password" required minlength="6" autocomplete="current-password" placeholder="Min 6 characters" />
+        </label>
+        <p id="authError" class="form-error" hidden></p>
+        <button id="authSubmit" type="submit" class="btn primary">Continue</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- App -->
+  <main id="appView" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="brand-row">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div>
+            <h1>ExamMind</h1>
+            <p id="userLabel" class="muted">Signed in</p>
+          </div>
         </div>
+        <button id="newChatBtn" type="button" class="btn primary block">New chat</button>
+      </div>
+
+      <div class="chat-list-wrap">
+        <p class="section-label">Your chats</p>
+        <div id="chatList" class="chat-list"></div>
+      </div>
+
+      <div class="sidebar-foot">
+        <div class="status-pill">
+          <span id="statusDot" class="dot warn"></span>
+          <span id="statusText">Starting…</span>
+        </div>
+        <button id="logoutBtn" type="button" class="btn ghost">Log out</button>
       </div>
     </aside>
 
-    <section class="chat-panel">
+    <section class="workspace">
+      <header class="workspace-bar">
+        <div>
+          <h2 id="chatTitle">Select or start a chat</h2>
+          <p class="muted small">Works for indexed exam papers and files you upload in this chat.</p>
+        </div>
+        <div class="bar-actions">
+          <label class="btn secondary upload-btn">
+            Upload PDF / TXT / CSV
+            <input id="fileInput" type="file" accept=".pdf,.txt,.csv,.docx,.xlsx" hidden />
+          </label>
+        </div>
+      </header>
+
+      <div id="filesStrip" class="files-strip" hidden></div>
+
       <section id="chatWindow" class="chat-window" aria-live="polite"></section>
-      <form id="chatForm" class="chat-input-row">
-        <input
-          id="messageInput"
-          type="text"
-          placeholder="Ask anything from your exam documents..."
-          autocomplete="off"
-        />
-        <button id="sendButton" type="submit">Ask</button>
+
+      <form id="chatForm" class="composer">
+        <div class="prompt-row">
+          <button type="button" class="chip" data-prompt="give me 3 question from theory of computation">3 TOC questions</button>
+          <button type="button" class="chip" data-prompt="explain this chapter step by step">Solve step by step</button>
+          <button type="button" class="chip" data-prompt="what was my previous question">Previous question</button>
+        </div>
+        <div class="composer-row">
+          <input
+            id="messageInput"
+            type="text"
+            placeholder="Ask from past papers or your uploaded chapter…"
+            autocomplete="off"
+          />
+          <button id="sendButton" type="submit" class="btn primary">Ask</button>
+        </div>
       </form>
     </section>
   </main>
 
   <template id="typingTemplate">
-    <div class="msg bot typing">
-      <span></span><span></span><span></span>
-    </div>
+    <div class="msg bot typing"><span></span><span></span><span></span></div>
   </template>
 
   <template id="messageTemplate">
@@ -63,10 +123,6 @@
       <div class="msg"></div>
     </article>
   </template>
-
-  <footer class="footer-note">
-    RAG answers include source citations when available.
-  </footer>
 
   <script src="/app.js"></script>
 </body>

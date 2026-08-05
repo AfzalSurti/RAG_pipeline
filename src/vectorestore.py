@@ -6,27 +6,36 @@ from typing import List, Any
 from src.embedding import EmbeddingPipeline
 
 class FaissVectorStore:
-    def __init__(self, persist_dir: str = "faiss_store", embedding_model: str = "all-MiniLM-L6-v2", chunk_size: int = 1000, chunk_overlap: int = 200):
+    def __init__(
+        self,
+        persist_dir: str = "faiss_store",
+        embedding_model: str = "all-MiniLM-L6-v2",
+        chunk_size: int = 1000,
+        chunk_overlap: int = 200,
+        model: Any = None,
+    ):
         self.persist_dir = persist_dir
         os.makedirs(self.persist_dir, exist_ok=True)
         self.index = None
         self.metadata = []
         self.embedding_model = embedding_model
-        try:
-            from sentence_transformers import SentenceTransformer
-            self.model = SentenceTransformer(embedding_model)
-        except Exception as e:
-            raise RuntimeError(
-                "Failed to initialize sentence-transformers. "
-                "Please use a clean project environment and reinstall dependencies. "
-                "If you use Conda on Windows, run with: set PYTHONNOUSERSITE=1"
-            ) from e
+        if model is not None:
+            self.model = model
+        else:
+            try:
+                from sentence_transformers import SentenceTransformer
+                self.model = SentenceTransformer(embedding_model)
+            except Exception as e:
+                raise RuntimeError(
+                    "Failed to initialize sentence-transformers. "
+                    "Please use a clean project environment and reinstall dependencies. "
+                    "If you use Conda on Windows, run with: set PYTHONNOUSERSITE=1"
+                ) from e
+            print(f"[INFO] Loaded embedding model: {embedding_model}")
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
-        print(f"[INFO] Loaded embedding model: {embedding_model}")
 
-    def build_from_documents(self, documents: List[Any]):
-        print(f"[INFO] Building vector store from {len(documents)} raw documents...")
+    def _prepare_chunks(self, documents: List[Any]):
         emb_pipe = EmbeddingPipeline(
             model_name=self.embedding_model,
             chunk_size=self.chunk_size,
@@ -50,9 +59,22 @@ class FaissVectorStore:
                     "page": chunk_meta.get("page", chunk_meta.get("page_number", "NA")),
                 }
             )
-        self.add_embeddings(np.array(embeddings).astype('float32'), metadatas)
+        return np.array(embeddings).astype("float32"), metadatas
+
+    def build_from_documents(self, documents: List[Any]):
+        print(f"[INFO] Building vector store from {len(documents)} raw documents...")
+        embeddings, metadatas = self._prepare_chunks(documents)
+        self.add_embeddings(embeddings, metadatas)
         self.save()
         print(f"[INFO] Vector store built and saved to {self.persist_dir}")
+
+    def add_documents(self, documents: List[Any]) -> int:
+        """Chunk + embed and append into an existing (or new) FAISS index."""
+        print(f"[INFO] Adding {len(documents)} documents into {self.persist_dir}...")
+        embeddings, metadatas = self._prepare_chunks(documents)
+        self.add_embeddings(embeddings, metadatas)
+        self.save()
+        return len(metadatas)
 
     def add_embeddings(self, embeddings: np.ndarray, metadatas: List[Any] = None):
         dim = embeddings.shape[1]

@@ -146,6 +146,48 @@ def load_all_documents(data_dir: str) -> List[Any]:
     print(f"[DEBUG] Total loaded documents: {len(documents)}")
     return documents
 
+
+def load_single_document(file_path: str) -> List[Any]:
+    """Load one uploaded PDF/TXT/CSV/DOCX/etc into LangChain documents."""
+    path = Path(file_path).resolve()
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {path}")
+
+    suffix = path.suffix.lower()
+    loaded: List[Any] = []
+
+    try:
+        if suffix == ".pdf":
+            loaded = PyPDFLoader(str(path)).load()
+            extracted = "".join((d.page_content or "") for d in loaded).strip()
+            if not extracted:
+                loaded = PyMuPDFLoader(str(path)).load()
+                extracted = "".join((d.page_content or "") for d in loaded).strip()
+            if not extracted:
+                loaded = _ocr_pdf_with_pytesseract(path)
+        elif suffix == ".txt":
+            loaded = TextLoader(str(path), encoding="utf-8").load()
+        elif suffix == ".csv":
+            loaded = CSVLoader(str(path)).load()
+        elif suffix == ".xlsx":
+            loaded = UnstructuredExcelLoader(str(path)).load()
+        elif suffix == ".docx":
+            loaded = Docx2txtLoader(str(path)).load()
+        elif suffix == ".json":
+            loaded = JSONLoader(str(path)).load()
+        else:
+            raise ValueError(f"Unsupported file type: {suffix}")
+    except Exception as exc:
+        raise RuntimeError(f"Failed to load {path.name}: {exc}") from exc
+
+    for doc in loaded:
+        meta = dict(doc.metadata or {})
+        meta["source"] = path.name
+        doc.metadata = meta
+
+    return loaded
+
+
 # Example usage
 if __name__ == "__main__":
     docs = load_all_documents("data")

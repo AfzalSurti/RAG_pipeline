@@ -1,7 +1,7 @@
 langchain
 langchain-core
 langchain-community
-pypdf 
+pypdf
 pymupdf
 sentence-transformers
 faiss-cpu
@@ -11,3 +11,6 @@ python-dotenv
 pytesseract
 Pillow
 Flask
+SQLAlchemy
+psycopg2-binary
+Werkzeug
