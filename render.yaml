@@ -11,7 +11,7 @@ services:
     # plan. threads give some concurrency; long timeout covers the cold-start
     # model download and the first Groq call.
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
-    healthCheckPath: /
+    healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
@@ -22,4 +22,4 @@ services:
       - key: DATABASE_URL
         sync: false        # Neon connection string, set in the dashboard
       - key: FRONTEND_ORIGIN
-        sync: false        # your Vercel URL, e.g. https://exammind.vercel.app
+        value: https://rag-pipeline-delta.vercel.app

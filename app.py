@@ -1,9 +1,11 @@
 import os
+import re
 import sys
 import threading
 import uuid
 from functools import wraps
 from pathlib import Path
+from typing import Optional
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory, session
@@ -104,15 +106,33 @@ def _run_cli_mode() -> None:
 app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path="")
 app.secret_key = os.getenv("SECRET_KEY", "examind-dev-secret")
 
-# In a split deployment the browser app (Vercel) and this API (Render) live on
-# different origins, so the session cookie must be SameSite=None; Secure and the
-# API must send CORS headers. Set FRONTEND_ORIGIN to the deployed frontend URL
-# (comma-separated for more than one). When it is unset we assume same-origin
-# local dev and keep the old Lax/insecure cookie so http://127.0.0.1 still works.
+# Split deployment: Vercel frontend + Render API are different origins.
+# FRONTEND_ORIGIN = comma-separated allowlist (set in Render dashboard).
+# Any *.vercel.app origin is also allowed so preview deploys work.
+_DEFAULT_DEV_ORIGINS = (
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+)
 _frontend_origins = [
     o.strip() for o in os.getenv("FRONTEND_ORIGIN", "").split(",") if o.strip()
 ]
-_cross_site = bool(_frontend_origins)
+_vercel_origin_re = re.compile(r"^https://[\w.-]+\.vercel\.app$", re.I)
+_on_render = os.getenv("RENDER") == "true" or bool(os.getenv("RENDER_EXTERNAL_HOSTNAME"))
+
+
+def _allowed_cors_origin(origin: Optional[str]) -> bool:
+    if not origin:
+        return False
+    if origin in _frontend_origins or origin in _DEFAULT_DEV_ORIGINS:
+        return True
+    if _vercel_origin_re.match(origin):
+        return True
+    return False
+
+
+_cross_site = _on_render or bool(_frontend_origins)
 
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -121,12 +141,58 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=60 * 60 * 24 * 14,
 )
 
-if _cross_site:
-    CORS(
-        app,
-        resources={r"/api/*": {"origins": _frontend_origins}},
-        supports_credentials=True,
+_cors_origins = list(_frontend_origins) + list(_DEFAULT_DEV_ORIGINS)
+
+CORS(
+    app,
+    resources={r"/api/*": {"origins": _cors_origins}},
+    supports_credentials=True,
+    allow_headers=["Content-Type"],
+    methods=["GET", "POST", "DELETE", "OPTIONS"],
+)
+
+
+def _is_allowed_origin(origin: Optional[str]) -> bool:
+    return _allowed_cors_origin(origin)
+
+
+@app.before_request
+def handle_cors_preflight():
+    if request.method != "OPTIONS" or not request.path.startswith("/api/"):
+        return None
+    origin = request.headers.get("Origin")
+    if not _is_allowed_origin(origin):
+        return jsonify({"error": "CORS not allowed"}), 403
+    response = app.make_default_options_response()
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, DELETE, OPTIONS"
+    response.headers["Access-Control-Max-Age"] = "86400"
+    return response
+
+
+@app.after_request
+def add_cors_for_vercel_previews(response):
+    if not request.path.startswith("/api/"):
+        return response
+    if response.headers.get("Access-Control-Allow-Origin"):
+        return response
+    origin = request.headers.get("Origin")
+    if _is_allowed_origin(origin):
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers.add("Vary", "Origin")
+    return response
+
+
+if _on_render and not _frontend_origins:
+    print(
+        "[WARN] FRONTEND_ORIGIN is not set on Render. "
+        "Allowing *.vercel.app via CORS fallback; set FRONTEND_ORIGIN for stricter control."
     )
+elif _frontend_origins:
+    print(f"[INFO] CORS allowlist: {', '.join(_frontend_origins)} (+ *.vercel.app previews)")
 
 
 def _db():
@@ -190,6 +256,7 @@ def index():
     return send_from_directory(str(FRONTEND_DIR), "index.html")
 
 
+@app.route("/health")
 @app.route("/api/health", methods=["GET"])
 def api_health():
     if _rag_error:
