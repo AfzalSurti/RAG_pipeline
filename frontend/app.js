@@ -23,6 +23,11 @@ const logoutBtn = document.getElementById("logoutBtn");
 const typingTemplate = document.getElementById("typingTemplate");
 const messageTemplate = document.getElementById("messageTemplate");
 
+// Base URL of the backend API. Set in config.js (window.API_BASE). Empty string
+// means "same origin" (the Flask server also serves this page in local dev).
+const API_BASE = String(window.API_BASE || "").replace(/\/+$/, "");
+const apiUrl = (path) => `${API_BASE}${path}`;
+
 let authMode = "login";
 let currentUser = null;
 let currentChatId = null;
@@ -137,8 +142,8 @@ function setStatus(type, text) {
 }
 
 async function api(url, options = {}) {
-  const res = await fetch(url, {
-    credentials: "same-origin",
+  const res = await fetch(apiUrl(url), {
+    credentials: "include",
     ...options,
     headers: {
       ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
@@ -222,7 +227,7 @@ function renderChatList() {
 
 async function checkHealth() {
   try {
-    const res = await fetch("/api/health", { credentials: "same-origin" });
+    const res = await fetch(apiUrl("/api/health"), { credentials: "include" });
     const data = await res.json();
     if (res.ok && data.ready) {
       setStatus("ok", "Ready");

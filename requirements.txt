@@ -11,6 +11,8 @@ python-dotenv
 pytesseract
 Pillow
 Flask
+Flask-Cors
+gunicorn
 SQLAlchemy
 psycopg2-binary
 Werkzeug

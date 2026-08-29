@@ -1,0 +1,25 @@
+# Render Blueprint — deploy with "New +" -> "Blueprint" and point it at this repo,
+# or just create a Web Service manually and copy the build/start commands below.
+services:
+  - type: web
+    name: exammind-api
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    # 1 worker only: torch + the embedding model must fit in 512 MB on the free
+    # plan. threads give some concurrency; long timeout covers the cold-start
+    # model download and the first Groq call.
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false        # set in the Render dashboard
+      - key: DATABASE_URL
+        sync: false        # Neon connection string, set in the dashboard
+      - key: FRONTEND_ORIGIN
+        sync: false        # your Vercel URL, e.g. https://exammind.vercel.app

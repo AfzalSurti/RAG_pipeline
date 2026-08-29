@@ -7,6 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory, session
+from flask_cors import CORS
 from sqlalchemy import desc
 from werkzeug.utils import secure_filename
 
@@ -102,11 +103,30 @@ def _run_cli_mode() -> None:
 
 app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path="")
 app.secret_key = os.getenv("SECRET_KEY", "examind-dev-secret")
+
+# In a split deployment the browser app (Vercel) and this API (Render) live on
+# different origins, so the session cookie must be SameSite=None; Secure and the
+# API must send CORS headers. Set FRONTEND_ORIGIN to the deployed frontend URL
+# (comma-separated for more than one). When it is unset we assume same-origin
+# local dev and keep the old Lax/insecure cookie so http://127.0.0.1 still works.
+_frontend_origins = [
+    o.strip() for o in os.getenv("FRONTEND_ORIGIN", "").split(",") if o.strip()
+]
+_cross_site = bool(_frontend_origins)
+
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SAMESITE="None" if _cross_site else "Lax",
+    SESSION_COOKIE_SECURE=_cross_site,
     PERMANENT_SESSION_LIFETIME=60 * 60 * 24 * 14,
 )
+
+if _cross_site:
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": _frontend_origins}},
+        supports_credentials=True,
+    )
 
 
 def _db():
@@ -480,25 +500,37 @@ def api_chat_legacy():
     return api_chat_message(int(chat_id))
 
 
+def _bootstrap_services() -> None:
+    """Create DB tables and kick off the async RAG load.
+
+    Runs at import time so a WSGI server (gunicorn app:app) triggers it too —
+    not only `python app.py`. Skipped for `--cli`, which builds its own RAG.
+    """
+    from src.db import init_db
+
+    try:
+        init_db()
+        print("[INFO] Database tables ready.")
+    except Exception as exc:
+        print(f"[ERROR] Database init failed: {exc}")
+        raise
+
+    _initialize_rag_async()
+
+
+if "--cli" not in sys.argv:
+    _bootstrap_services()
+
+
 if __name__ == "__main__":
-    cli_mode = "--cli" in sys.argv
-    if cli_mode:
+    if "--cli" in sys.argv:
         _run_cli_mode()
     else:
         if not _is_venv_active():
             print("[WARN] You are not using the project virtual environment.")
             print("[WARN] Run with: D:/RAG_pipeline/.venv/Scripts/python.exe app.py")
 
-        from src.db import init_db
-
-        try:
-            init_db()
-            print("[INFO] Database tables ready.")
-        except Exception as exc:
-            print(f"[ERROR] Database init failed: {exc}")
-            raise
-
-        _initialize_rag_async()
-        print("[INFO] ExamMind starting at http://127.0.0.1:8000")
+        port = int(os.getenv("PORT", "8000"))
+        print(f"[INFO] ExamMind starting at http://127.0.0.1:{port}")
         print("[INFO] Open your browser — signup/login, then chat & upload papers.")
-        app.run(host="127.0.0.1", port=8000, debug=False)
+        app.run(host="0.0.0.0", port=port, debug=False)
